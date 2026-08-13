@@ -9,6 +9,18 @@ This repository contains the mathematical formalization, DIMACS generator, and e
 
 ---
 
+## Table of Contents
+
+- [Executive Summary](#-executive-summary)
+- [Mathematical Formalization](#-mathematical-formalization)
+- [Repository Structure](#-repository-structure)
+- [Getting Started](#-getting-started)
+- [Experimental Results](#-experimental-results)
+- [Academic Details](#-academic-details)
+- [References](#-references)
+
+---
+
 ## 📌 Executive Summary
 
 Minesweeper is a classic NP-complete decision problem when generalized to an arbitrary $n \times m$ grid. The core objective of this project is to model local board constraints (numbered cells specifying the exact quantity of adjacent bombs) into Propositional Logic formulas and verify board consistency/deductions using modern industrial-grade SAT solvers such as **CaDiCaL** and **Kissat**.
@@ -41,7 +53,7 @@ To ensure at least $N$ mines exist among $m$ neighbors, no subset of size $(m - 
 
 $$\bigwedge_{S \subseteq V, \, \vert{}S\vert{} = m - N + 1} \left( \bigvee_{y \in S} y \right)$$
 
-* **Clause Count:** $\binom{m}{m - N + 1}$ clauses.
+- **Clause Count:** $\binom{m}{m - N + 1}$ clauses.
 
 #### B. At Most $N$ Mines
 
@@ -49,7 +61,7 @@ To ensure no more than $N$ mines exist, no subset of size $(N + 1)$ can all be m
 
 $$\bigwedge_{S \subseteq V, \, \vert{}S\vert{} = N + 1} \left( \bigvee_{y \in S} \neg y \right)$$
 
-* **Clause Count:** $\binom{m}{N + 1}$ clauses.
+- **Clause Count:** $\binom{m}{N + 1}$ clauses.
 
 ---
 
@@ -57,16 +69,10 @@ $$\bigwedge_{S \subseteq V, \, \vert{}S\vert{} = N + 1} \left( \bigvee_{y \in S}
 
 ```text
 .
-├── src/
-│   ├── generator.cpp      # C++ source code to output DIMACS CNF files
-│   └── decoder.cpp        # C++ decoder to reconstruct board from SAT assignments
-├── Makefile               # Build script for generator and decoder
-├── instances/             # Pre-generated .cnf benchmarks (easy to hard)
-├── results/               # Solver logs and execution time benchmarks
-├── docs/                  # Project report and mathematical formulations
-└── README.md              # Project documentation
-
+└── README.md   # Project documentation
 ```
+
+> **Note:** The `src/` (DIMACS generator & decoder), `instances/` (CNF benchmarks), `results/` (solver logs), and `docs/` (project report) directories are **planned** and will be added as the implementation progresses. The workflow described in [Getting Started](#-getting-started) describes the intended usage of this forthcoming code.
 
 ---
 
@@ -74,13 +80,9 @@ $$\bigwedge_{S \subseteq V, \, \vert{}S\vert{} = N + 1} \left( \bigvee_{y \in S}
 
 ### Prerequisites
 
-* **C++17 Compiler** (`g++` or `clang++`)
-
-
-* **Make** build utility
-* **CaDiCaL** or **Kissat** SAT Solver
-
-
+- **C++17 Compiler** (`g++` or `clang++`)
+- **Make** build utility
+- **CaDiCaL** or **Kissat** SAT Solver
 
 To compile CaDiCaL on Linux/macOS or WSL:
 
@@ -88,7 +90,6 @@ To compile CaDiCaL on Linux/macOS or WSL:
 git clone https://github.com/arminbiere/cadical.git
 cd cadical
 ./configure && make
-
 ```
 
 ### Building the Project
@@ -97,7 +98,6 @@ Compile the C++ generator and decoder executables using `make`:
 
 ```bash
 make
-
 ```
 
 *(Or compile manually using `g++ -O3 -std=c++17 src/generator.cpp -o generator`)*
@@ -110,7 +110,6 @@ Generate a CNF instance file from a board configuration:
 
 ```bash
 ./generator --rows 8 --cols 8 --mines 10 > instances/minesweeper_8x8.cnf
-
 ```
 
 #### 2. Verify DIMACS Header Integrity
@@ -123,7 +122,6 @@ p cnf 64 128
 1 2 3 0
 -1 -2 -3 0
 ...
-
 ```
 
 #### 3. Run SAT Solver
@@ -132,7 +130,6 @@ Execute the solver on the generated instance and pipe the output:
 
 ```bash
 time cadical instances/minesweeper_8x8.cnf > results/solution_8x8.log
-
 ```
 
 #### 4. Decode SAT Solution
@@ -141,7 +138,6 @@ Reconstruct the board solution from the SAT solver's model output:
 
 ```bash
 ./decoder results/solution_8x8.log
-
 ```
 
 ---
@@ -160,38 +156,20 @@ Experiments were performed on various grid dimensions to analyze execution time 
 
 ---
 
-## 🎓 Academic Details & Authors
+## 🎓 Academic Details
 
-* **Institution:** Universidade Federal do Cariri (UFCA)
-
-
-* **Center:** Centro de Ciências e Tecnologia (CCT)
-
-
-* **Course:** Ciência da Computação
-
-
-* **Discipline:** Lógica para Ciência da Computação
-
-
-* **Professor:** Dr. Luis Henrique Bustamante
-
-
-* **Authors:**
-* Gildo Alves de Lima Júnior
-
-
-* Gilvan Alves Pastor Júnior
-
-
-
-
+- **Institution:** Universidade Federal do Cariri (UFCA)
+- **Center:** Centro de Ciências e Tecnologia (CCT)
+- **Course:** Ciência da Computação
+- **Discipline:** Lógica para Ciência da Computação
+- **Professor:** Dr. Luis Henrique Bustamante
+- **Authors:**
+  - Gildo Alves de Lima Júnior
+  - Gilvan Alves Pastor Júnior
 
 ---
 
 ## 📚 References
 
 1. **Biere, A., Heule, M., van Maaren, H., & Walsh, T.** (2021). *Handbook of Satisfiability* (2nd ed.). IOS Press.
-
-
 2. **Avigad, J.** (2022). *Mathematical Logic and Computation*. Cambridge University Press.
