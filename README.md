@@ -1,11 +1,11 @@
-# Minesweeper SAT Formalization & Solver
+# Minesweeper SAT Formalization & CNF Encoder
 
 [![Academic Project](https://img.shields.io/badge/Academic-UFCA-blue.svg)](https://www.ufca.edu.br/)
 [![Language](https://img.shields.io/badge/Language-C%2B%2B17-blue.svg)](https://isocpp.org/)
 [![Format](https://img.shields.io/badge/Format-DIMACS%20CNF-green.svg)](https://en.wikipedia.org/wiki/Conjunctive_normal_form)
 [![SAT Solver](https://img.shields.io/badge/Solver-CaDiCaL%20%2F%20Kissat-red.svg)](https://github.com/arminbiere/cadical)
 
-This repository contains the mathematical formalization, DIMACS generator, and experimental framework for reducing **Minesweeper board states** to the **Boolean Satisfiability Problem (SAT)** in **Conjunctive Normal Form (CNF)**. Developed for the *Lógica para Ciência da Computação* course at Universidade Federal do Cariri (UFCA).
+This repository contains the mathematical formalization and a **C++ CNF encoder** that reduces **Minesweeper board states** to the **Boolean Satisfiability Problem (SAT)** in **Conjunctive Normal Form (CNF)**. Developed for the *Lógica para Ciência da Computação* course at Universidade Federal do Cariri (UFCA).
 
 ---
 
@@ -25,6 +25,8 @@ This repository contains the mathematical formalization, DIMACS generator, and e
 
 Minesweeper is a classic NP-complete decision problem when generalized to an arbitrary $n \times m$ grid. The core objective of this project is to model local board constraints (numbered cells specifying the exact quantity of adjacent bombs) into Propositional Logic formulas and verify board consistency/deductions using modern industrial-grade SAT solvers such as **CaDiCaL** and **Kissat**.
 
+The `cnf_generator` executable encodes a given board configuration into a DIMACS CNF instance. The SAT solver is run externally; once a model is produced, the original board can be reconstructed from the variable assignments (decoder planned).
+
 ---
 
 ## 🧮 Mathematical Formalization
@@ -39,11 +41,17 @@ For linearized DIMACS mapping, two-dimensional coordinates $(i, j)$ are mapped t
 
 $$v = (i - 1) \cdot C + j$$
 
+In the implementation (0-indexed `x`, `y`), this corresponds to `x * C + y + 1`.
+
 ### 2. CNF Clause Families
 
 For a revealed cell $(i, j)$ containing a number $N \in \{0, 1, \dots, 8\}$, let $V = \{y_1, y_2, \dots, y_m\}$ denote the set of its $m$ unopened adjacent neighbors ($m \le 8$).
 
-To enforce that **exactly $N$** of these neighbors contain mines, we decompose the cardinality constraint into two sub-conditions:
+First, every revealed cell is forced to be mine-free with the unit clause:
+
+$$(\neg x_{i,j})$$
+
+Then, to enforce that **exactly $N$** of the unknown neighbors contain mines, we decompose the cardinality constraint into two sub-conditions:
 
 $$\text{Exact}(N, V) \iff \text{AtLeast}(N, V) \land \text{AtMost}(N, V)$$
 
@@ -63,16 +71,28 @@ $$\bigwedge_{S \subseteq V, \, \vert{}S\vert{} = N + 1} \left( \bigvee_{y \in S}
 
 - **Clause Count:** $\binom{m}{N + 1}$ clauses.
 
+### 3. Inconsistent Boards
+
+If a revealed cell declares $N > m$ (more mines than available unknown neighbors), the constraint is impossible to satisfy. The encoder emits an **empty clause**, making the whole formula **UNSAT** — a correct indication that the board state is inconsistent.
+
 ---
 
 ## 📁 Repository Structure
 
 ```text
 .
-└── README.md   # Project documentation
+├── src/
+│   ├── cnf_generator.cpp   # C++ CNF encoder (board state → DIMACS CNF)
+│   └── test_sat.cnf        # Sample generated instance
+└── README.md               # Project documentation
 ```
 
-> **Note:** The `src/` (DIMACS generator & decoder), `instances/` (CNF benchmarks), `results/` (solver logs), and `docs/` (project report) directories are **planned** and will be added as the implementation progresses. The workflow described in [Getting Started](#-getting-started) describes the intended usage of this forthcoming code.
+> **Planned (not yet implemented):**
+> - `src/decoder.cpp` — reconstruct board from a SAT solver's model output
+> - `Makefile` — build script for encoder and decoder
+> - `instances/` — CNF benchmarks (easy to hard)
+> - `results/` — solver logs and execution time benchmarks
+> - `docs/` — project report and detailed mathematical formulations
 
 ---
 
@@ -81,7 +101,6 @@ $$\bigwedge_{S \subseteq V, \, \vert{}S\vert{} = N + 1} \left( \bigvee_{y \in S}
 ### Prerequisites
 
 - **C++17 Compiler** (`g++` or `clang++`)
-- **Make** build utility
 - **CaDiCaL** or **Kissat** SAT Solver
 
 To compile CaDiCaL on Linux/macOS or WSL:
@@ -94,65 +113,71 @@ cd cadical
 
 ### Building the Project
 
-Compile the C++ generator and decoder executables using `make`:
+Compile the CNF encoder:
 
 ```bash
-make
+g++ -O3 -std=c++17 src/cnf_generator.cpp -o src/cnf_generator
 ```
 
-*(Or compile manually using `g++ -O3 -std=c++17 src/generator.cpp -o generator`)*
+### Input Format
+
+The encoder reads from standard input:
+
+1. Two integers `n m` — board dimensions.
+2. An `n × m` matrix of integers:
+   - `-1` for **unknown** (unopened) cells;
+   - `0`–`8` for **revealed** cells (the number of adjacent mines).
+
+Example board (`3 × 3`, center cell reveals `1`):
+
+```text
+3 3
+-1 -1 -1
+-1 1 -1
+-1 -1 -1
+```
 
 ### Usage Workflow
 
 #### 1. Generate DIMACS CNF Instance
 
-Generate a CNF instance file from a board configuration:
-
 ```bash
-./generator --rows 8 --cols 8 --mines 10 > instances/minesweeper_8x8.cnf
+./src/cnf_generator < board.txt > out.cnf
 ```
 
-#### 2. Verify DIMACS Header Integrity
-
-The C++ generator automatically checks that the declared number of variables and clauses in the header (`p cnf VARS CLAUSES`) matches the actual clause count:
+Output:
 
 ```text
-c Minesweeper SAT Instance Generated for UFCA Logic Course
-p cnf 64 128
-1 2 3 0
--1 -2 -3 0
+p cnf 9 30
+-5 0
+9 8 7 6 4 3 2 1 0
+-9 -8 0
 ...
 ```
 
-#### 3. Run SAT Solver
+The header (`p cnf VARS CLAUSES`) reports the exact number of variables ($R \cdot C$) and the total number of clauses generated.
+
+#### 2. Run SAT Solver
 
 Execute the solver on the generated instance and pipe the output:
 
 ```bash
-time cadical instances/minesweeper_8x8.cnf > results/solution_8x8.log
+time cadical out.cnf > solution.log
 ```
 
-#### 4. Decode SAT Solution
+#### 3. Decode SAT Solution *(planned)*
 
-Reconstruct the board solution from the SAT solver's model output:
+Reconstruct the board solution from the SAT solver's model output with the upcoming `decoder`:
 
 ```bash
-./decoder results/solution_8x8.log
+./decoder solution.log
 ```
 
 ---
 
 ## 📊 Experimental Results
 
-Experiments were performed on various grid dimensions to analyze execution time scaling and formula growth.
-
-| Instance ID | Grid Size | Vars | Clauses | Result | Execution Time (s) |
-| --- | --- | --- | --- | --- | --- |
-| `inst_01_easy` | $4 \times 4$ | 16 | 42 | **SAT** | 0.002s |
-| `inst_02_med` | $8 \times 8$ | 64 | 210 | **SAT** | 0.005s |
-| `inst_03_hard` | $16 \times 16$ | 256 | 1,120 | **SAT** | 0.018s |
-| `inst_04_unsat` | $8 \times 8$ | 64 | 240 | **UNSAT** | 0.004s |
-| `inst_05_large` | $30 \times 16$ | 480 | 2,890 | **SAT** | 0.045s |
+Benchmark data is **pending**. Once `instances/` (generated CNF benchmarks) and `results/` (solver logs) are added, this section will be populated with execution time and formula growth measurements across board dimensions.
 
 ---
 
